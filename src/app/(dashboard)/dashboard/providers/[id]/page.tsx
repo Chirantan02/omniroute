@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useNotificationStore } from "@/store/notificationStore";
 import PropTypes from "prop-types";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -1290,7 +1291,7 @@ function CustomModelsSection({ providerId, providerAlias, copied, onCopy }) {
 
   const fetchCustomModels = useCallback(async () => {
     try {
-      const res = await fetch(`/api/provider-models?provider=${providerId}`);
+      const res = await fetch(`/api/provider-models?provider=${encodeURIComponent(providerId)}`);
       if (res.ok) {
         const data = await res.json();
         setCustomModels(data.models || []);
@@ -1334,7 +1335,7 @@ function CustomModelsSection({ providerId, providerAlias, copied, onCopy }) {
   const handleRemove = async (modelId) => {
     try {
       await fetch(
-        `/api/provider-models?provider=${providerId}&model=${encodeURIComponent(modelId)}`,
+        `/api/provider-models?provider=${encodeURIComponent(providerId)}&model=${encodeURIComponent(modelId)}`,
         {
           method: "DELETE",
         }
@@ -1461,6 +1462,7 @@ function CompatibleModelsSection({
   const [newModel, setNewModel] = useState("");
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const notify = useNotificationStore();
 
   const providerAliases = Object.entries(modelAliases).filter(([, model]: [string, any]) =>
     (model as string).startsWith(`${providerStorageAlias}/`)
@@ -1490,7 +1492,7 @@ function CompatibleModelsSection({
     const modelId = newModel.trim();
     const resolvedAlias = resolveAlias(modelId);
     if (!resolvedAlias) {
-      alert(
+      notify.error(
         "All suggested aliases already exist. Please choose a different model or remove conflicting aliases."
       );
       return;
@@ -1523,9 +1525,12 @@ function CompatibleModelsSection({
       // Only create alias after customModel is saved successfully
       await onSetAlias(modelId, resolvedAlias, providerStorageAlias);
       setNewModel("");
+      notify.success(`Model ${modelId} added successfully`);
     } catch (error) {
-      console.log("Error adding model:", error);
-      alert(error instanceof Error ? error.message : "Failed to add model. Please try again.");
+      console.error("Error adding model:", error);
+      notify.error(
+        error instanceof Error ? error.message : "Failed to add model. Please try again."
+      );
     } finally {
       setAdding(false);
     }
@@ -1566,7 +1571,7 @@ function CompatibleModelsSection({
           });
 
           if (!customModelRes.ok) {
-            console.error("Failed to save imported model to customModels DB");
+            notify.error("Failed to save imported model to custom database");
             return false;
           }
 
@@ -1576,7 +1581,8 @@ function CompatibleModelsSection({
         }
       );
     } catch (error) {
-      console.log("Error importing models:", error);
+      console.error("Error importing models:", error);
+      notify.error("Failed to import models. Please try again.");
     } finally {
       setImporting(false);
     }
@@ -1588,14 +1594,21 @@ function CompatibleModelsSection({
   const handleDeleteModel = async (modelId: string, alias: string) => {
     try {
       // Remove from customModels DB
-      await fetch(
-        `/api/provider-models?provider=${providerStorageAlias}&model=${encodeURIComponent(modelId)}`,
+      const res = await fetch(
+        `/api/provider-models?provider=${encodeURIComponent(providerStorageAlias)}&model=${encodeURIComponent(modelId)}`,
         { method: "DELETE" }
       );
+      if (!res.ok) {
+        throw new Error("Failed to remove model from database");
+      }
       // Also delete the alias
       await onDeleteAlias(alias);
+      notify.success("Model removed successfully");
     } catch (error) {
-      console.log("Error deleting model:", error);
+      console.error("Error deleting model:", error);
+      notify.error(
+        error instanceof Error ? error.message : "Failed to delete model. Please try again."
+      );
     }
   };
 
