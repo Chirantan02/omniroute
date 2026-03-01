@@ -218,13 +218,13 @@ In practice these incidents usually come from the downstream RAG pipeline, not f
 
 If you want a shared vocabulary to describe those failures you can use the WFGY ProblemMap, an external MIT license text resource that defines sixteen recurring RAG / LLM failure patterns. At a high level it covers:
 
-- retrieval drift and broken context boundaries  
-- empty or stale indexes and vector stores  
-- embedding versus semantic mismatch  
-- prompt assembly and context window issues  
-- logic collapse and overconfident answers  
-- long chain and agent coordination failures  
-- multi agent memory and role drift  
+- retrieval drift and broken context boundaries
+- empty or stale indexes and vector stores
+- embedding versus semantic mismatch
+- prompt assembly and context window issues
+- logic collapse and overconfident answers
+- long chain and agent coordination failures
+- multi agent memory and role drift
 - deployment and bootstrap ordering problems
 
 The idea is simple:
