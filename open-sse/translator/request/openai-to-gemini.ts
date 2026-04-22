@@ -357,8 +357,12 @@ export function openaiToGeminiCLIRequest(model, body, stream) {
   const supportsThinking = spec?.supportsThinking === true;
 
   // Gemini 3+ models with thinkingConfig require thought_signature on ALL functionCall parts.
-  // Disable thinking when tools present to avoid 400 errors about missing signatures.
-  const hasTools = gemini.tools && gemini.tools.length > 0;
+  // Disable thinking when ANY tools present (MCP tools OR Claude Code internal tools).
+  // Check both gemini.tools (from body.tools) and body.tools (original request).
+  const hasTools =
+    (gemini.tools && gemini.tools.length > 0) ||
+    (body.tools && Array.isArray(body.tools) && body.tools.length > 0) ||
+    body.tool_choice !== undefined;
 
   // For Gemini 3+ models (gemini-3.x, gemini-exp-*), always disable thinking when tools present.
   // Signature requirement makes tools + thinking incompatible.
