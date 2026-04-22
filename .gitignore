@@ -176,3 +176,51 @@ bin/omniroute.mjs
 .omc/
 audit-report.json
 bun.lock
+
+# Database files - NEVER commit
+data/
+**/data/
+**/db.json
+
+# Source code (if you only want to use, not develop)
+src/
+docs/
+tests/
+cloud/
+images/
+logs/
+scripts/  
+  
+# Config/dev files  
+*.md  
+!README.md  
+.gitignore  
+.git/  
+.github/  
+.husky/  
+.vscode/  
+.agents/  
+.env*  
+eslint.config.mjs  
+prettier.config.mjs  
+postcss.config.mjs  
+next.config.mjs  
+tsconfig.json  
+playwright.config.ts  
+vitest.config.ts  
+  
+# Build artifacts  
+.next/  
+node_modules/  
+*.tgz  
+*.AppImage  
+*.deb  
+*.rpm  
+electron/  
+  
+# Subprojects  
+clipr/  
+omnirouteCloud/  
+omnirouteSite/  
+vscode-extension/
+
