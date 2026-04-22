@@ -176,10 +176,29 @@ export function claudeToGeminiRequest(model, body, stream) {
 
   // ── Thinking config ────────────────────────────────────────────
   // Gemini 3+ requires thought_signature on ALL functionCall parts when thinking enabled.
-  // Disable thinking when tools present to avoid signature errors.
-  const hasTools = geminiTools && geminiTools.length > 0;
+  // Check if CURRENT turn has active tool usage (not just tool definitions).
+  let hasActiveToolUsage = false;
 
-  if (body.thinking?.type === "enabled" && body.thinking.budget_tokens && !hasTools) {
+  // Check last few messages for tool calls or tool responses
+  const recentMessages = body.messages?.slice(-3) || [];
+  for (const msg of recentMessages) {
+    // Assistant message with tool_use blocks = tool call in progress
+    if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      if (msg.content.some(block => block.type === "tool_use")) {
+        hasActiveToolUsage = true;
+        break;
+      }
+    }
+    // User message with tool_result blocks = tool response in progress
+    if (msg.role === "user" && Array.isArray(msg.content)) {
+      if (msg.content.some(block => block.type === "tool_result")) {
+        hasActiveToolUsage = true;
+        break;
+      }
+    }
+  }
+
+  if (body.thinking?.type === "enabled" && body.thinking.budget_tokens && !hasActiveToolUsage) {
     result.generationConfig.thinkingConfig = {
       thinkingBudget: body.thinking.budget_tokens,
       includeThoughts: true,
