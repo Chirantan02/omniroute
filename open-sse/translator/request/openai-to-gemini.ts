@@ -356,31 +356,26 @@ export function openaiToGeminiCLIRequest(model, body, stream) {
   const spec = getModelSpec(normalizedModel);
   const supportsThinking = spec?.supportsThinking === true;
 
-  // Gemini 3+ requires thought_signature on functionCall parts when thinking enabled.
-  // Check if CURRENT turn has active tool usage (not just tool definitions).
-  let hasActiveToolUsage = false;
-
-  // Check last few messages for tool calls or tool responses
-  const recentMessages = body.messages?.slice(-3) || [];
-  for (const msg of recentMessages) {
-    // Assistant message with tool_calls = tool call in progress
-    if (msg.role === "assistant" && msg.tool_calls && Array.isArray(msg.tool_calls)) {
-      hasActiveToolUsage = true;
-      break;
-    }
-    // Tool message = tool response in progress
-    if (msg.role === "tool") {
-      hasActiveToolUsage = true;
-      break;
-    }
-  }
-
-  // For Gemini 3+ models, disable thinking only on turns with active tool usage
-  const isGemini3Plus = /^gemini-(3\.|exp-)/i.test(normalizedModel);
-  const canEnableThinking = supportsThinking && (!hasActiveToolUsage || !isGemini3Plus);
+  // Gemini 3+ models with thinkingConfig require thought_signature on ALL functionCall parts.
+  // Disable thinking when ANY tools present (MCP tools OR Claude Code internal tools).
+  // Check both gemini.tools (from body.tools) and body.tools (original request).
+  const hasTools =
+    (gemini.tools && gemini.tools.length > 0) ||
+    (body.tools && Array.isArray(body.tools) && body.tools.length > 0) ||
+    body.tool_choice !== undefined;
 
   // Debug logging
-  console.log(`[GEMINI_THINKING] model=${normalizedModel}, supportsThinking=${supportsThinking}, hasActiveToolUsage=${hasActiveToolUsage}, isGemini3Plus=${isGemini3Plus}, canEnableThinking=${canEnableThinking}`);
+  if (hasTools) {
+    console.log(`[GEMINI_THINKING] Tools detected: gemini.tools=${gemini.tools?.length || 0}, body.tools=${Array.isArray(body.tools) ? body.tools.length : 0}`);
+  }
+
+  // For Gemini 3+ models (gemini-3.x, gemini-exp-*), always disable thinking when tools present.
+  // Signature requirement makes tools + thinking incompatible.
+  const isGemini3Plus = /^gemini-(3\.|exp-)/i.test(normalizedModel);
+  const canEnableThinking = supportsThinking && (!hasTools || !isGemini3Plus);
+
+  // Debug logging
+  console.log(`[GEMINI_THINKING] model=${normalizedModel}, supportsThinking=${supportsThinking}, hasTools=${hasTools}, isGemini3Plus=${isGemini3Plus}, canEnableThinking=${canEnableThinking}`);
 
   // Add thinking config for CLI
   if (body.reasoning_effort && canEnableThinking) {
