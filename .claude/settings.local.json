@@ -5,7 +5,16 @@
       "Bash(cp -r C:/Users/chira/.omniroute/* C:/Users/chira/Desktop/OmniRoute/data/)",
       "Bash(sqlite3 C:/Users/chira/Desktop/OmniRoute/data/storage.sqlite \"SELECT COUNT\\(*\\) as total_tables FROM sqlite_master WHERE type='table';\")",
       "Bash(npm run *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(gh extension *)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "WebSearch",
+      "Bash(sqlite3 *)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }
