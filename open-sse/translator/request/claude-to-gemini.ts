@@ -175,7 +175,11 @@ export function claudeToGeminiRequest(model, body, stream) {
   }
 
   // ── Thinking config ────────────────────────────────────────────
-  if (body.thinking?.type === "enabled" && body.thinking.budget_tokens) {
+  // Gemini 3+ requires thought_signature on ALL functionCall parts when thinking enabled.
+  // Disable thinking when tools present to avoid signature errors.
+  const hasTools = geminiTools && geminiTools.length > 0;
+
+  if (body.thinking?.type === "enabled" && body.thinking.budget_tokens && !hasTools) {
     result.generationConfig.thinkingConfig = {
       thinkingBudget: body.thinking.budget_tokens,
       includeThoughts: true,
