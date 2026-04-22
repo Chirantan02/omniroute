@@ -364,10 +364,18 @@ export function openaiToGeminiCLIRequest(model, body, stream) {
     (body.tools && Array.isArray(body.tools) && body.tools.length > 0) ||
     body.tool_choice !== undefined;
 
+  // Debug logging
+  if (hasTools) {
+    console.log(`[GEMINI_THINKING] Tools detected: gemini.tools=${gemini.tools?.length || 0}, body.tools=${Array.isArray(body.tools) ? body.tools.length : 0}`);
+  }
+
   // For Gemini 3+ models (gemini-3.x, gemini-exp-*), always disable thinking when tools present.
   // Signature requirement makes tools + thinking incompatible.
   const isGemini3Plus = /^gemini-(3\.|exp-)/i.test(normalizedModel);
   const canEnableThinking = supportsThinking && (!hasTools || !isGemini3Plus);
+
+  // Debug logging
+  console.log(`[GEMINI_THINKING] model=${normalizedModel}, supportsThinking=${supportsThinking}, hasTools=${hasTools}, isGemini3Plus=${isGemini3Plus}, canEnableThinking=${canEnableThinking}`);
 
   // Add thinking config for CLI
   if (body.reasoning_effort && canEnableThinking) {
