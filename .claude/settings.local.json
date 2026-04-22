@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p C:/Users/chira/Desktop/OmniRoute/data)",
+      "Bash(cp -r C:/Users/chira/.omniroute/* C:/Users/chira/Desktop/OmniRoute/data/)",
+      "Bash(sqlite3 C:/Users/chira/Desktop/OmniRoute/data/storage.sqlite \"SELECT COUNT\\(*\\) as total_tables FROM sqlite_master WHERE type='table';\")",
+      "Bash(npm run *)",
+      "Bash(node *)"
+    ]
+  }
+}

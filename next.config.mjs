@@ -8,6 +8,7 @@ const nextConfig = {
   distDir,
   // Turbopack config: redirect native modules to stubs at build time
   turbopack: {
+    root: process.cwd(),
     resolveAlias: {
       // Point mitm/manager to a stub during build (native child_process/fs can't be bundled)
       "@/mitm/manager": "./src/mitm/manager.stub.ts",
