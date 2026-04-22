@@ -121,11 +121,7 @@ export function geminiToOpenAIResponse(chunk, state) {
           };
 
           if (state.pendingThoughtSignature) {
-            storeGeminiThoughtSignature(
-              toolCall.id,
-              state.pendingThoughtSignature,
-              state.providerId
-            );
+            storeGeminiThoughtSignature(toolCall.id, state.pendingThoughtSignature);
             state.pendingThoughtSignature = null;
           }
 
@@ -183,11 +179,7 @@ export function geminiToOpenAIResponse(chunk, state) {
         };
 
         if (state.pendingThoughtSignature) {
-          storeGeminiThoughtSignature(
-            toolCall.id,
-            state.pendingThoughtSignature,
-            state.providerId
-          );
+          storeGeminiThoughtSignature(toolCall.id, state.pendingThoughtSignature);
           state.pendingThoughtSignature = null;
         }
 

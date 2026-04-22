@@ -329,7 +329,6 @@ export function createSSEStream(options: StreamOptions = {}) {
       ? {
           ...(initState(sourceFormat) as TranslateState),
           provider,
-          providerId: connectionId || "",  // NEW: pass connectionId as providerId for signature tracking
           toolNameMap,
           accumulatedContent: "",
         }
