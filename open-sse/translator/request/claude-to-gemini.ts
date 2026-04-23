@@ -175,11 +175,35 @@ export function claudeToGeminiRequest(model, body, stream) {
   }
 
   // ── Thinking config ────────────────────────────────────────────
-  // Gemini 3+ requires thought_signature on ALL functionCall parts when thinking enabled.
-  // Disable thinking when tools present to avoid signature errors.
-  const hasTools = geminiTools && geminiTools.length > 0;
+  // Late-Bind Thinking: Enable thinking strategically based on conversation phase
+  // Phase 1 (Brainstorming): Tools defined but no tool_calls yet → thinking enabled
+  // Phase 2 (Execution): Tool_calls present → thinking disabled (no signature yet)
+  // Phase 3 (Processing): Tool_results present with cached signatures → thinking enabled
 
-  if (body.thinking?.type === "enabled" && body.thinking.budget_tokens && !hasTools) {
+  let hasToolCalls = false;
+  let hasToolResults = false;
+
+  // Scan messages for tool usage state
+  for (const msg of body.messages || []) {
+    if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      if (msg.content.some(block => block.type === "tool_use")) {
+        hasToolCalls = true;
+      }
+    }
+    if (msg.role === "user" && Array.isArray(msg.content)) {
+      if (msg.content.some(block => block.type === "tool_result")) {
+        hasToolResults = true;
+      }
+    }
+  }
+
+  // Late-bind logic:
+  // - No tool calls yet (brainstorming) → enable thinking
+  // - Tool calls present (execution) → disable thinking (no signatures)
+  // - Tool results present (processing) → disable thinking (signature validation complex)
+  const canEnableThinking = !hasToolCalls && !hasToolResults;
+
+  if (body.thinking?.type === "enabled" && body.thinking.budget_tokens && canEnableThinking) {
     result.generationConfig.thinkingConfig = {
       thinkingBudget: body.thinking.budget_tokens,
       includeThoughts: true,
