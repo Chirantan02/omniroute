@@ -356,30 +356,18 @@ export function openaiToGeminiCLIRequest(model, body, stream) {
   const spec = getModelSpec(normalizedModel);
   const supportsThinking = spec?.supportsThinking === true;
 
-  // Late-Bind Thinking: Enable thinking strategically based on conversation phase
-  // Phase 1 (Brainstorming): Tools defined but no tool_calls yet → thinking enabled
-  // Phase 2 (Execution): Tool_calls present → thinking disabled (no signature yet)
-  // Phase 3 (Processing): Tool_results present → thinking disabled (signature validation complex)
+  // Gemini 3+ requires thought_signature on ALL functionCall parts when thinking enabled.
+  // Disable thinking when tools defined to avoid signature errors.
+  const hasTools =
+    (gemini.tools && gemini.tools.length > 0) ||
+    (body.tools && Array.isArray(body.tools) && body.tools.length > 0) ||
+    body.tool_choice !== undefined;
 
-  let hasToolCalls = false;
-  let hasToolResults = false;
-
-  // Scan messages for tool usage state
-  for (const msg of body.messages || []) {
-    if (msg.role === "assistant" && msg.tool_calls && Array.isArray(msg.tool_calls)) {
-      hasToolCalls = true;
-    }
-    if (msg.role === "tool") {
-      hasToolResults = true;
-    }
-  }
-
-  // Late-bind logic for Gemini 3+
   const isGemini3Plus = /^gemini-(3\.|exp-)/i.test(normalizedModel);
-  const canEnableThinking = supportsThinking && (!hasToolCalls && !hasToolResults || !isGemini3Plus);
+  const canEnableThinking = supportsThinking && (!hasTools || !isGemini3Plus);
 
   // Debug logging
-  console.log(`[GEMINI_THINKING] model=${normalizedModel}, supportsThinking=${supportsThinking}, hasToolCalls=${hasToolCalls}, hasToolResults=${hasToolResults}, isGemini3Plus=${isGemini3Plus}, canEnableThinking=${canEnableThinking}`);
+  console.log(`[GEMINI_THINKING] model=${normalizedModel}, supportsThinking=${supportsThinking}, hasTools=${hasTools}, canEnableThinking=${canEnableThinking}`);
 
   // Add thinking config for CLI
   if (body.reasoning_effort && canEnableThinking) {
