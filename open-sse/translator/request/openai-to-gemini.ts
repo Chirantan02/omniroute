@@ -381,6 +381,9 @@ export function openaiToGeminiCLIRequest(model, body, stream) {
       thinkingBudget: budget,
       includeThoughts: true,
     };
+  } else if (hasTools && isGemini3Plus) {
+    // Explicitly remove thinkingConfig if tools present on Gemini 3+
+    delete gemini.generationConfig.thinkingConfig;
   }
 
   // Thinking config from Claude format
@@ -389,6 +392,9 @@ export function openaiToGeminiCLIRequest(model, body, stream) {
       thinkingBudget: body.thinking.budget_tokens,
       includeThoughts: true,
     };
+  } else if (hasTools && isGemini3Plus) {
+    // Explicitly remove thinkingConfig if tools present on Gemini 3+
+    delete gemini.generationConfig.thinkingConfig;
   }
 
   return gemini;
