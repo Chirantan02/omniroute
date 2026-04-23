@@ -181,11 +181,17 @@ export function claudeToGeminiRequest(model, body, stream) {
     (geminiTools && geminiTools.length > 0) ||
     (body.tools && Array.isArray(body.tools) && body.tools.length > 0);
 
+  // Debug logging
+  console.log(`[CLAUDE_TO_GEMINI_THINKING] geminiTools=${geminiTools?.length || 0}, body.tools=${Array.isArray(body.tools) ? body.tools.length : 0}, hasTools=${hasTools}, thinking=${body.thinking?.type}`);
+
   if (body.thinking?.type === "enabled" && body.thinking.budget_tokens && !hasTools) {
+    console.log(`[CLAUDE_TO_GEMINI_THINKING] ENABLING thinkingConfig with budget=${body.thinking.budget_tokens}`);
     result.generationConfig.thinkingConfig = {
       thinkingBudget: body.thinking.budget_tokens,
       includeThoughts: true,
     };
+  } else {
+    console.log(`[CLAUDE_TO_GEMINI_THINKING] SKIPPING thinkingConfig - hasTools=${hasTools}`);
   }
 
   const changedToolNameMap = new Map(
