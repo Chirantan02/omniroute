@@ -65,6 +65,8 @@ type StreamOptions = {
 
 type TranslateState = ReturnType<typeof initState> & {
   provider?: string | null;
+  connectionId?: string | null;
+  providerId?: string | null;
   toolNameMap?: unknown;
   usage?: unknown;
   finishReason?: unknown;
@@ -329,6 +331,8 @@ export function createSSEStream(options: StreamOptions = {}) {
       ? {
           ...(initState(sourceFormat) as TranslateState),
           provider,
+          connectionId,
+          providerId: connectionId,
           toolNameMap,
           accumulatedContent: "",
         }

@@ -175,23 +175,32 @@ export function claudeToGeminiRequest(model, body, stream) {
   }
 
   // ── Thinking config ────────────────────────────────────────────
-  // Gemini 3+ requires thought_signature on ALL functionCall parts when thinking enabled.
-  // Disable thinking when tools defined to avoid signature errors.
   const hasTools =
     (geminiTools && geminiTools.length > 0) ||
     (body.tools && Array.isArray(body.tools) && body.tools.length > 0);
+  const hasActiveToolUsage = Array.isArray(body.messages)
+    ? body.messages.some(
+        (msg) =>
+          Array.isArray(msg?.content) &&
+          msg.content.some((block) => block?.type === "tool_use" || block?.type === "tool_result")
+      )
+    : false;
 
   // Debug logging
-  console.log(`[CLAUDE_TO_GEMINI_THINKING] geminiTools=${geminiTools?.length || 0}, body.tools=${Array.isArray(body.tools) ? body.tools.length : 0}, hasTools=${hasTools}, thinking=${body.thinking?.type}`);
+  console.log(
+    `[CLAUDE_TO_GEMINI_THINKING] geminiTools=${geminiTools?.length || 0}, body.tools=${Array.isArray(body.tools) ? body.tools.length : 0}, hasTools=${hasTools}, activeToolUsage=${hasActiveToolUsage}, thinking=${body.thinking?.type}`
+  );
 
-  if (body.thinking?.type === "enabled" && body.thinking.budget_tokens && !hasTools) {
+  if (body.thinking?.type === "enabled" && body.thinking.budget_tokens && !hasActiveToolUsage) {
     console.log(`[CLAUDE_TO_GEMINI_THINKING] ENABLING thinkingConfig with budget=${body.thinking.budget_tokens}`);
     result.generationConfig.thinkingConfig = {
       thinkingBudget: body.thinking.budget_tokens,
       includeThoughts: true,
     };
   } else {
-    console.log(`[CLAUDE_TO_GEMINI_THINKING] SKIPPING thinkingConfig - hasTools=${hasTools}`);
+    console.log(
+      `[CLAUDE_TO_GEMINI_THINKING] SKIPPING thinkingConfig - activeToolUsage=${hasActiveToolUsage}`
+    );
   }
 
   const changedToolNameMap = new Map(

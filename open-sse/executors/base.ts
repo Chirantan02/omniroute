@@ -272,7 +272,7 @@ export class BaseExecutor {
   }
 
   // Intra-URL retry config: retry same URL before falling back to next node
-  static readonly RETRY_CONFIG = { maxAttempts: 2, delayMs: 2000 };
+  static readonly RETRY_CONFIG = { maxAttempts: 2, delayMs: 4000 };
   // Timeout for receiving the initial upstream response headers. Once the response
   // starts streaming, STREAM_IDLE_TIMEOUT_MS / Undici bodyTimeout handle stalls.
   static FETCH_START_TIMEOUT_MS = FETCH_TIMEOUT_MS;

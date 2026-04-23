@@ -121,7 +121,11 @@ export function geminiToOpenAIResponse(chunk, state) {
           };
 
           if (state.pendingThoughtSignature) {
-            storeGeminiThoughtSignature(toolCall.id, state.pendingThoughtSignature);
+            storeGeminiThoughtSignature(
+              toolCall.id,
+              state.pendingThoughtSignature,
+              state.providerId || state.connectionId || ""
+            );
             state.pendingThoughtSignature = null;
           }
 
@@ -179,7 +183,11 @@ export function geminiToOpenAIResponse(chunk, state) {
         };
 
         if (state.pendingThoughtSignature) {
-          storeGeminiThoughtSignature(toolCall.id, state.pendingThoughtSignature);
+          storeGeminiThoughtSignature(
+            toolCall.id,
+            state.pendingThoughtSignature,
+            state.providerId || state.connectionId || ""
+          );
           state.pendingThoughtSignature = null;
         }
 

@@ -1,10 +1,11 @@
 const MAX_SIGNATURES = 1000;
-const TTL_MS = 1000 * 60 * 60;
+const TTL_MS = 1000 * 60 * 60 * 24;
 
 export type SignatureCacheMode = "enabled" | "bypass" | "bypass-strict";
 
 type Entry = {
   signature: string;
+  providerId: string;
   expiresAt: number;
 };
 
@@ -26,13 +27,20 @@ function pruneExpired() {
   }
 }
 
-export function storeGeminiThoughtSignature(toolCallId: unknown, signature: unknown) {
+export function storeGeminiThoughtSignature(
+  toolCallId: unknown,
+  signature: unknown,
+  providerId: unknown = ""
+) {
   if (typeof toolCallId !== "string" || !toolCallId) return;
   if (typeof signature !== "string" || !signature) return;
+  const normalizedProviderId =
+    typeof providerId === "string" && providerId.trim().length > 0 ? providerId.trim() : "";
 
   pruneExpired();
   signatures.set(toolCallId, {
     signature,
+    providerId: normalizedProviderId,
     expiresAt: Date.now() + TTL_MS,
   });
 }
@@ -44,6 +52,15 @@ export function getGeminiThoughtSignature(toolCallId: unknown) {
   const entry = signatures.get(toolCallId);
   if (!entry) return null;
   return entry.signature;
+}
+
+export function getProviderForSignature(toolCallId: unknown) {
+  if (typeof toolCallId !== "string" || !toolCallId) return null;
+
+  pruneExpired();
+  const entry = signatures.get(toolCallId);
+  if (!entry || !entry.providerId) return null;
+  return entry.providerId;
 }
 
 export function normalizeSignatureCacheMode(value: unknown): SignatureCacheMode {

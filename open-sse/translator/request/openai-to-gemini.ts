@@ -110,6 +110,20 @@ function extractClientThoughtSignature(toolCall) {
   );
 }
 
+function hasActiveToolUsageInOpenAIMessages(body): boolean {
+  if (!body || !Array.isArray(body.messages)) return false;
+
+  for (const msg of body.messages) {
+    if (!msg || typeof msg !== "object") continue;
+    if (msg.role === "tool") return true;
+    if (msg.role === "assistant" && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Core: Convert OpenAI request to Gemini format (base for all variants)
 function openaiToGeminiBase(model, body, stream, toolNameOptions: GeminiToolNameOptions = {}) {
   const result: GeminiRequest = {
@@ -174,6 +188,9 @@ function openaiToGeminiBase(model, body, stream, toolNameOptions: GeminiToolName
     }
   }
 
+  let missingSignatureBatchCount = 0;
+  let missingSignatureToolCallCount = 0;
+
   // Convert messages
   if (body.messages && Array.isArray(body.messages)) {
     for (let i = 0; i < body.messages.length; i++) {
@@ -218,27 +235,40 @@ function openaiToGeminiBase(model, body, stream, toolNameOptions: GeminiToolName
 
         if (msg.tool_calls && Array.isArray(msg.tool_calls)) {
           const toolCallIds = [];
-          const firstPersistedSignature = msg.tool_calls
-            .map((tc) => resolveGeminiThoughtSignature(tc.id, extractClientThoughtSignature(tc)))
-            .find((signature) => typeof signature === "string" && signature.length > 0);
+          const resolvedSignaturesById = new Map<string, string>();
+          const missingSignatureToolCallIds = new Set<string>();
 
-          let shouldUseEmbeddedSignature = !parts.some((p) => p.thoughtSignature);
+          for (const tc of msg.tool_calls) {
+            if (tc.type !== "function") continue;
+            const signature = resolveGeminiThoughtSignature(tc.id, extractClientThoughtSignature(tc));
+            if (typeof signature === "string" && signature.length > 0) {
+              resolvedSignaturesById.set(tc.id, signature);
+            } else {
+              missingSignatureToolCallIds.add(tc.id);
+            }
+          }
+
+          const firstPersistedSignature = [...resolvedSignaturesById.values()][0] || null;
+          const hasMissingSignatures = missingSignatureToolCallIds.size > 0;
+
+          if (hasMissingSignatures) {
+            missingSignatureBatchCount += 1;
+            missingSignatureToolCallCount += missingSignatureToolCallIds.size;
+          }
 
           for (const tc of msg.tool_calls) {
             if (tc.type !== "function") continue;
 
+            // Gemini 3+ can reject historical functionCall parts without thought_signature.
+            // Skip unsigned functionCall history and rely on tool_result/user context instead.
+            if (hasMissingSignatures && !resolvedSignaturesById.has(tc.id)) {
+              continue;
+            }
+
             const args = tryParseJSON(tc.function?.arguments || "{}");
-            const signatureForToolCall = resolveGeminiThoughtSignature(
-              tc.id,
-              extractClientThoughtSignature(tc)
-            );
+            const signatureForToolCall = resolvedSignaturesById.get(tc.id) || null;
             const resolvedSignature = firstPersistedSignature || signatureForToolCall;
 
-            // Gemini 3+ cryptographically validates thoughtSignature.
-            // Only include if we have a real signature from cache or client.
-            // Never inject fake/stale signatures - they cause 400 errors.
-            // When echoing tool calls (client → Gemini), signature is optional.
-            // Only NEW tool calls from Gemini require signatures with thinkingConfig.
             const part: GeminiPart = {
               functionCall: {
                 id: tc.id,
@@ -336,6 +366,12 @@ function openaiToGeminiBase(model, body, stream, toolNameOptions: GeminiToolName
     result._toolNameMap = changedToolNameMap;
   }
 
+  if (missingSignatureToolCallCount > 0) {
+    console.warn(
+      `[GEMINI_SIGNATURE] Missing thought signatures in ${missingSignatureBatchCount} assistant message(s), ${missingSignatureToolCallCount} tool call(s) total; omitting unsigned functionCall history to avoid upstream 400`
+    );
+  }
+
   return result;
 }
 
@@ -356,18 +392,18 @@ export function openaiToGeminiCLIRequest(model, body, stream) {
   const spec = getModelSpec(normalizedModel);
   const supportsThinking = spec?.supportsThinking === true;
 
-  // Gemini 3+ requires thought_signature on ALL functionCall parts when thinking enabled.
-  // Disable thinking when tools defined to avoid signature errors.
   const hasTools =
     (gemini.tools && gemini.tools.length > 0) ||
     (body.tools && Array.isArray(body.tools) && body.tools.length > 0) ||
     body.tool_choice !== undefined;
 
-  const isGemini3Plus = /^gemini-(3\.|exp-)/i.test(normalizedModel);
-  const canEnableThinking = supportsThinking && (!hasTools || !isGemini3Plus);
+  const hasActiveToolUsage = hasActiveToolUsageInOpenAIMessages(body);
+  const canEnableThinking = supportsThinking && !hasActiveToolUsage;
 
   // Debug logging
-  console.log(`[GEMINI_THINKING] model=${normalizedModel}, supportsThinking=${supportsThinking}, hasTools=${hasTools}, canEnableThinking=${canEnableThinking}`);
+  console.log(
+    `[GEMINI_THINKING] model=${normalizedModel}, supportsThinking=${supportsThinking}, hasTools=${hasTools}, activeToolUsage=${hasActiveToolUsage}, canEnableThinking=${canEnableThinking}`
+  );
 
   // Add thinking config for CLI
   if (body.reasoning_effort && canEnableThinking) {
@@ -381,9 +417,6 @@ export function openaiToGeminiCLIRequest(model, body, stream) {
       thinkingBudget: budget,
       includeThoughts: true,
     };
-  } else if (hasTools && isGemini3Plus) {
-    // Explicitly remove thinkingConfig if tools present on Gemini 3+
-    delete gemini.generationConfig.thinkingConfig;
   }
 
   // Thinking config from Claude format
@@ -392,9 +425,6 @@ export function openaiToGeminiCLIRequest(model, body, stream) {
       thinkingBudget: body.thinking.budget_tokens,
       includeThoughts: true,
     };
-  } else if (hasTools && isGemini3Plus) {
-    // Explicitly remove thinkingConfig if tools present on Gemini 3+
-    delete gemini.generationConfig.thinkingConfig;
   }
 
   return gemini;
